@@ -24,12 +24,12 @@ The line-level datasets (in [`/dataset/Line-level`](/dataset/Line-level/)) conta
 ### Repository Structure
 ```
 SOUND
+|  Appendix.pdf
 │  environment.yml
 │  README.md
 │  
 ├─.idea
 │  │  .gitignore
-│  │  misc.xml
 │  │  modules.xml
 │  │  SOUND.iml
 │  │  vcs.xml
@@ -39,6 +39,8 @@ SOUND
 │          profiles_settings.xml
 │          
 ├─dataset
+|  ├─Bug-Info
+|  |
 │  ├─File-level
 │  │      
 │  └─Line-level

@@ -171,47 +171,58 @@ class BaseModel(object):
 
         self.load_line_level_result()
 
-        tp = len(self.oracle_line_set.intersection(self.predicted_buggy_lines))
-        fp = self.num_predict_buggy_lines - tp
+        tp = len(self.oracle_line_set.intersection(self.predicted_buggy_lines[:int(self.num_total_lines_without_comments * 0.2)]))
+        fp = int(self.num_total_lines_without_comments * 0.2) - tp
         fn = self.num_actual_buggy_lines - tp
-        tn = self.num_total_lines - tp - fp - fn
-        print(f'Total lines: {self.num_total_lines}\n'
+        tn = self.num_total_lines_without_comments - tp - fp - fn
+        print(f'Total lines: {self.num_total_lines_without_comments}\n'
               f'Buggy lines: {self.num_actual_buggy_lines}\n'
               f'Predicted lines: {len(self.predicted_buggy_lines)}\n'
               f'TP: {tp}, FP: {fp}, FN: {fn}, TN: {tn}')
 
         prec = .0 if tp + fp == .0 else tp / (tp + fp)
         recall = .0 if tp + fn == .0 else tp / (tp + fn)
+
         far = .0 if fp + tn == 0 else fp / (fp + tn)
-        ce = .0 if fn + tn == .0 else fn / (fn + tn)
 
         d2h = math.sqrt(math.pow(1 - recall, 2) + math.pow(0 - far, 2)) / math.sqrt(2)
+
         mcc = .0 if tp + fp == .0 or tp + fn == .0 or tn + fp == .0 or tn + fn == .0 else \
             (tp * tn - fp * fn) / math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
-        x, y = tp + fp, tp
-        n, N = self.num_actual_buggy_lines, self.num_total_lines
+        f1 = 2 * (prec * recall) / (prec + recall)
 
-        ER = .0 if (y * N) == .0 else (y * N - x * n) / (y * N)
-        RI = .0 if (x * n) == 0 else (y * N - x * n) / (x * n)
-
-        ifa, r_20, effort_20 = self.rank_strategy()
+        ifa, effort_20, r_0, r_10, r_20, r_30, r_40, r_50, r_60, r_70, r_80, r_90, r_100 = self.rank_strategy()
 
         buggy_lines_dict = {}
-        total_bugs = len(buggy_lines_dict.keys())
         hit_bugs = set()
         for line in self.predicted_buggy_lines:
             for bug_commit, lines in buggy_lines_dict.items():
                 if line in lines:
                     hit_bugs.add(bug_commit)
 
-        ratio = 0 if total_bugs == 0 else round(len(hit_bugs) / total_bugs, 3)
+        label = []
+        pred = []
+        total_lines = len(self.predicted_buggy_lines)
+
+        for idx, line in enumerate(self.predicted_buggy_lines):
+            if line in self.oracle_line_set:
+                label.append(1)
+            else:
+                label.append(0)
+
+            pred.append((total_lines - idx) / total_lines)
+
+        auc = calc_auc(label, pred)
 
         append_title = True if not os.path.exists(self.line_level_evaluation_file) else False
-        title = 'release,line_threshold,precision,recall,far,ce,d2h,mcc,ifa,recall_20,effort@20%recall,ER,RI,ratio\n'
+        print(f'append_title is {append_title}')
+        title = 'release,tp,fp,fn,tn,' \
+                'precision,recall,far,d2h,mcc,f1,auc,ifa,recall_0,recall_10,recall_20,recall_30,recall_40,recall_50,recall_60,recall_70,recall_80,recall_90,recall_100,effort@20%recall\n'
         with open(self.line_level_evaluation_file, 'a') as file:
             file.write(title) if append_title else None
-            file.write(f'{self.test_release},{self.line_threshold},{prec},{recall},{far},{ce},{d2h},{mcc},{ifa},{r_20},{effort_20},{ER},{RI},{ratio}\n')
+            file.write(f'{self.test_release},{tp},{fp},{fn},{tn},'
+                       f'{prec},{recall},{far},{d2h},{mcc},{f1},{auc},{ifa},{r_0},{r_10},{r_20},{r_30},{r_40},{r_50},{r_60},{r_70},{r_80},{r_90},{r_100},{effort_20}\n')
         return
 
     def rank_strategy(self):
@@ -239,7 +250,44 @@ class BaseModel(object):
 
     def get_rank_performance(self, ranked_predicted_buggy_lines):
         count, ifa, recall_20, max_effort = 0, 0, 0, int(self.num_total_lines_without_comments * self.threshold_effort)
+
+        recall_10, recall_30, recall_40, recall_50, recall_60, recall_70, recall_80, recall_90 = 0, 0, 0, 0, 0, 0, 0, 0
+        effort_10 = int(self.num_total_lines_without_comments * 0.1)
+        effort_30 = int(self.num_total_lines_without_comments * 0.3)
+        effort_40 = int(self.num_total_lines_without_comments * 0.4)
+        effort_50 = int(self.num_total_lines_without_comments * 0.5)
+        effort_60 = int(self.num_total_lines_without_comments * 0.6)
+        effort_70 = int(self.num_total_lines_without_comments * 0.7)
+        effort_80 = int(self.num_total_lines_without_comments * 0.8)
+        effort_90 = int(self.num_total_lines_without_comments * 0.9)
+
         has_found = False
+
+        for line in ranked_predicted_buggy_lines[:effort_10]:
+            if line in self.oracle_line_set:
+                recall_10 += 1
+        for line in ranked_predicted_buggy_lines[:effort_30]:
+            if line in self.oracle_line_set:
+                recall_30 += 1
+        for line in ranked_predicted_buggy_lines[:effort_40]:
+            if line in self.oracle_line_set:
+                recall_40 += 1
+        for line in ranked_predicted_buggy_lines[:effort_50]:
+            if line in self.oracle_line_set:
+                recall_50 += 1
+        for line in ranked_predicted_buggy_lines[:effort_60]:
+            if line in self.oracle_line_set:
+                recall_60 += 1
+        for line in ranked_predicted_buggy_lines[:effort_70]:
+            if line in self.oracle_line_set:
+                recall_70 += 1
+        for line in ranked_predicted_buggy_lines[:effort_80]:
+            if line in self.oracle_line_set:
+                recall_80 += 1
+        for line in ranked_predicted_buggy_lines[:effort_90]:
+            if line in self.oracle_line_set:
+                recall_90 += 1
+
         for line in ranked_predicted_buggy_lines[:max_effort]:
             if line in self.oracle_line_set:
                 recall_20 += 1
@@ -259,7 +307,16 @@ class BaseModel(object):
                     effort_20_recall = count
                     break
 
-        return ifa, recall_20 / self.num_actual_buggy_lines, effort_20_recall / self.num_total_lines_without_comments
+        return (ifa, effort_20_recall / self.num_total_lines_without_comments, 0,
+                recall_10 / self.num_actual_buggy_lines,
+                recall_20 / self.num_actual_buggy_lines,
+                recall_30 / self.num_actual_buggy_lines,
+                recall_40 / self.num_actual_buggy_lines,
+                recall_50 / self.num_actual_buggy_lines,
+                recall_60 / self.num_actual_buggy_lines,
+                recall_70 / self.num_actual_buggy_lines,
+                recall_80 / self.num_actual_buggy_lines,
+                recall_90 / self.num_actual_buggy_lines, 1)
 
     def save_file_level_result(self):
         data = {'filename': self.test_filename,

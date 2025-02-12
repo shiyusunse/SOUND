@@ -1,4 +1,5 @@
 library(ggplot2)
+library(scales)
 
 file_names <- c("Barinel.csv", "Dstar.csv", "Ochiai.csv", "Op2.csv", "Tarantula.csv", "DeepLineDP.csv","GLANCE-LR.csv", "GLANCE-EA.csv", "GLANCE-MD.csv", "LineDP.csv", "ErrorProne.csv", "Ngram.csv")
 

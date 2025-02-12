@@ -1,4 +1,5 @@
 library(ggplot2)
+library(scales)
 
 file_names <- c("Barinel.csv", "Barinel_file.csv")
 
@@ -33,7 +34,6 @@ ggplot(data, aes(x = group, y = ifa)) +
   stat_summary(fun.y = mean, geom = "point", shape = 23, size=2, fill = "white", color = "black") +
   theme_minimal() +
   labs(x = "", y = "", title = "") +
-  scale_x_discrete(limits = group_order) +
   coord_trans(y="log10") +
   scale_y_continuous(
     breaks = c(1, 10, 100, 1000),
