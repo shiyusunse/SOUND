@@ -105,7 +105,7 @@ SOUND
 1. clone the github repository by using the following command
 
 ```
- git clone https://github.com/SOUNDLineDP/SOUND.git
+ git clone https://github.com/shiyusunse/SOUND.git
 ```
 2. use the following command to install required libraries in conda environment
 
